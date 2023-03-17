@@ -22,7 +22,7 @@ import {
     SocialInstagramIcon,
     SocialPinterestIcon,
     SocialTwitterIcon
-} from '../icons'
+} from 'retail-react-app/app/components/icons'
 
 import {SocialFacebookIcon, SocialYoutubeIcon} from '^retail-react-app/app/components/icons'
 
