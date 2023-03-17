@@ -6,6 +6,7 @@
  */
 import React, {forwardRef} from 'react'
 import {Icon, useTheme} from '@chakra-ui/react'
+import text from './text'
 
 // Our own SVG imports. These will be extracted to a single sprite sheet by the
 // svg-sprite-loader webpack plugin at build time and injected in the <body> tag
@@ -99,7 +100,7 @@ const icon = (name, passProps) => {
             // </Icon>
             // TODO: for demo, this can show overrides, but highlight
             // that imports within the project don't respect them
-            <>z🎉</>
+            <>{text}</>
         )
     })
     component.displayName = `${displayName}Icon`
