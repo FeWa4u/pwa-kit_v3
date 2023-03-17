@@ -14,16 +14,16 @@ import {FormattedMessage, useIntl} from 'react-intl'
 import {Box, Button, Stack, OrderedList, ListItem} from '@chakra-ui/react'
 
 // Hooks
-import useBasket from '^retail-react-app/app/commerce-api/hooks/useBasket'
-import {useVariant} from '^retail-react-app/app/hooks'
-import useWishlist from '^retail-react-app/app/hooks/use-wishlist'
-import useNavigation from '^retail-react-app/app/hooks/use-navigation'
-import useEinstein from '^retail-react-app/app/commerce-api/hooks/useEinstein'
+import useBasket from 'retail-react-app/app/commerce-api/hooks/useBasket'
+import {useVariant} from 'retail-react-app/app/hooks'
+import useWishlist from 'retail-react-app/app/hooks/use-wishlist'
+import useNavigation from 'retail-react-app/app/hooks/use-navigation'
+import useEinstein from 'retail-react-app/app/commerce-api/hooks/useEinstein'
 
 // Project Components
-import RecommendedProducts from '^retail-react-app/app/components/recommended-products'
-import ProductView from '^retail-react-app/app/partials/product-view'
-import InformationAccordion from '^retail-react-app/app/pages/product-detail/partials/information-accordion'
+import RecommendedProducts from 'retail-react-app/app/components/recommended-products'
+import ProductView from 'retail-react-app/app/partials/product-view'
+import InformationAccordion from 'retail-react-app/app/pages/product-detail/partials/information-accordion'
 
 // Others/Utils
 import {HTTPNotFound} from 'pwa-kit-react-sdk/ssr/universal/errors'
@@ -34,10 +34,10 @@ import {
     MAX_CACHE_AGE,
     TOAST_ACTION_VIEW_WISHLIST,
     TOAST_MESSAGE_ADDED_TO_WISHLIST
-} from '^retail-react-app/app/constants'
-import {rebuildPathWithParams} from '^retail-react-app/app/utils/url'
+} from 'retail-react-app/app/constants'
+import {rebuildPathWithParams} from 'retail-react-app/app/utils/url'
 import {useHistory} from 'react-router-dom'
-import {useToast} from '^retail-react-app/app/hooks/use-toast'
+import {useToast} from 'retail-react-app/app/hooks/use-toast'
 
 const ProductDetail = ({category, product, isLoading}) => {
     const {formatMessage} = useIntl()

@@ -24,7 +24,7 @@ import {
     SocialTwitterIcon
 } from '../icons'
 
-import {SocialFacebookIcon, SocialYoutubeIcon} from '^retail-react-app/app/components/icons'
+import {SocialFacebookIcon, SocialYoutubeIcon} from 'retail-react-app/app/components/icons'
 
 /**
  *

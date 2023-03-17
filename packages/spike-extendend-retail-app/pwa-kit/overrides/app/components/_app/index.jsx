@@ -16,33 +16,33 @@ import {Box, useDisclosure, useStyleConfig} from '@chakra-ui/react'
 import {SkipNavLink, SkipNavContent} from '@chakra-ui/skip-nav'
 
 // Contexts
-import {CategoriesProvider, CurrencyProvider} from '^retail-react-app/app/contexts'
+import {CategoriesProvider, CurrencyProvider} from 'retail-react-app/app/contexts'
 
 // Local Project Components
 import Header from '../header'
-import OfflineBanner from '^retail-react-app/app/components/offline-banner'
-import OfflineBoundary from '^retail-react-app/app/components/offline-boundary'
-import ScrollToTop from '^retail-react-app/app/components/scroll-to-top'
-import Footer from '^retail-react-app/app/components/footer'
-import CheckoutFooter from '^retail-react-app/app/pages/checkout/partials/checkout-footer'
-import CheckoutHeader from '^retail-react-app/app/pages/checkout/partials/checkout-header'
-import DrawerMenu from '^retail-react-app/app/components/drawer-menu'
-import ListMenu from '^retail-react-app/app/components/list-menu'
-import {HideOnDesktop, HideOnMobile} from '^retail-react-app/app/components/responsive'
+import OfflineBanner from 'retail-react-app/app/components/offline-banner'
+import OfflineBoundary from 'retail-react-app/app/components/offline-boundary'
+import ScrollToTop from 'retail-react-app/app/components/scroll-to-top'
+import Footer from 'retail-react-app/app/components/footer'
+import CheckoutFooter from 'retail-react-app/app/pages/checkout/partials/checkout-footer'
+import CheckoutHeader from 'retail-react-app/app/pages/checkout/partials/checkout-header'
+import DrawerMenu from 'retail-react-app/app/components/drawer-menu'
+import ListMenu from 'retail-react-app/app/components/list-menu'
+import {HideOnDesktop, HideOnMobile} from 'retail-react-app/app/components/responsive'
 
 // Hooks
-import useShopper from '^retail-react-app/app/commerce-api/hooks/useShopper'
-import useCustomer from '^retail-react-app/app/commerce-api/hooks/useCustomer'
-import {AuthModal, useAuthModal} from '^retail-react-app/app/hooks/use-auth-modal'
-import {AddToCartModalProvider} from '^retail-react-app/app/hooks/use-add-to-cart-modal'
-import useWishlist from '^retail-react-app/app/hooks/use-wishlist'
+import useShopper from 'retail-react-app/app/commerce-api/hooks/useShopper'
+import useCustomer from 'retail-react-app/app/commerce-api/hooks/useCustomer'
+import {AuthModal, useAuthModal} from 'retail-react-app/app/hooks/use-auth-modal'
+import {AddToCartModalProvider} from 'retail-react-app/app/hooks/use-add-to-cart-modal'
+import useWishlist from 'retail-react-app/app/hooks/use-wishlist'
 
 // Localization
 import {IntlProvider} from 'react-intl'
 
 // Others
-import {watchOnlineStatus, flatten} from '^retail-react-app/app/utils/utils'
-import {getTargetLocale, fetchTranslations} from '^retail-react-app/app/utils/locale'
+import {watchOnlineStatus, flatten} from 'retail-react-app/app/utils/utils'
+import {getTargetLocale, fetchTranslations} from 'retail-react-app/app/utils/locale'
 import {
     DEFAULT_SITE_TITLE,
     HOME_HREF,
@@ -50,11 +50,11 @@ import {
     CAT_MENU_DEFAULT_NAV_DEPTH,
     CAT_MENU_DEFAULT_ROOT_CATEGORY,
     DEFAULT_LOCALE,
-} from '^retail-react-app/app/constants'
+} from 'retail-react-app/app/constants'
 
-import Seo from '^retail-react-app/app/components/seo'
-import {resolveSiteFromUrl} from '^retail-react-app/app/utils/site-utils'
-import useMultiSite from '^retail-react-app/app/hooks/use-multi-site'
+import Seo from 'retail-react-app/app/components/seo'
+import {resolveSiteFromUrl} from 'retail-react-app/app/utils/site-utils'
+import useMultiSite from 'retail-react-app/app/hooks/use-multi-site'
 
 const App = (props) => {
     const {
