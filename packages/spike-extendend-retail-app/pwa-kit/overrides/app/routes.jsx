@@ -19,6 +19,7 @@ import {getConfig} from 'pwa-kit-runtime/utils/ssr-config'
 // Components
 import {Skeleton} from '@chakra-ui/react'
 import {configureRoutes} from '^retail-react-app/app/utils/routes-utils'
+import Thing from '../../../app/thing'
 
 const fallback = <Skeleton height="75vh" width="100%" />
 
@@ -106,6 +107,10 @@ const routes = [
     {
         path: '/account/wishlist',
         component: Wishlist,
+    },
+    {
+        path: '/thing',
+        component: Thing,
     },
     {
         path: '*',
