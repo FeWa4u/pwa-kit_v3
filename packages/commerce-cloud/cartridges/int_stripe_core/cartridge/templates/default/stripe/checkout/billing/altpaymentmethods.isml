@@ -1,0 +1,39 @@
+<input type="hidden" name="stripe_source_id" id="stripe_source_id">
+<input type="hidden" name="stripe_source_client_secret" id="stripe_source_client_secret">
+<input type="hidden" name="stripe_redirect_url" id="stripe_redirect_url">
+
+<isset name="stripeOrder" value="${require('*/cartridge/scripts/stripe/helpers/checkoutHelper').getStripeOrderDetails(pdict.Basket)}" scope="page" />
+
+<input type="hidden" id="stripe_order_amount" value="${stripeOrder.amount}">
+<input type="hidden" id="stripe_order_currency" value="${stripeOrder.currency}">
+<input type="hidden" id="stripe_site_id" value="${require('*/cartridge/scripts/stripe/helpers/checkoutHelper').getSiteID()}">
+<input type="hidden" id="stripe_order_number" value="${require('*/cartridge/scripts/stripe/helpers/checkoutHelper').getNewStripeOrderNumber()}">
+
+<input type="hidden" id="stripe_purchase_country" value="${stripeOrder.purchase_country}">
+<input type="hidden" id="stripe_order_items" value="${stripeOrder.order_items}">
+<input type="hidden" id="stripe_order_shipping" value="${stripeOrder.order_shipping}">
+<input type="hidden" id="stripe_shipping_first_name" value="${stripeOrder.shipping_first_name}">
+<input type="hidden" id="stripe_shipping_last_name" value="${stripeOrder.shipping_last_name}">
+
+<input type="hidden" id="stripe_site_locale" value="${require('*/cartridge/scripts/stripe/helpers/checkoutHelper').getSiteLocale()}">
+
+<isset name="stripeHelper" value="${require('*/cartridge/scripts/stripe/helpers/stripeHelper')}" scope="page" />
+<isset name="wallet" value="${stripeHelper.getStripeWallet(customer)}" scope="page" />
+
+<isset name="isStripePaymentElementEnabled" value="${stripeHelper.isStripePaymentElementEnabled()}" scope="page" />
+
+<iscomment>
+    Stripe Payment Elements
+    -------------------
+</iscomment>
+<isif condition="${isStripePaymentElementEnabled}">
+	<div class="payment-method payment-method-expanded" data-method="STRIPE_PAYMENT_ELEMENT">
+	    <div id="payment-element" style="width:100%"
+			data-errormsg="${Resource.msg('apm.error.fail','stripe',null)}"
+			data-formaction="${URLUtils.https('COSummary-Submit')}"
+			data-tokenname="${dw.web.CSRFProtection.getTokenName()}"
+			data-tokenvalue="${dw.web.CSRFProtection.generateToken()}"
+			data-submitordertxt="${Resource.msg('global.submitorder','locale',null)}">
+	    </div>
+	</div>
+</isif>

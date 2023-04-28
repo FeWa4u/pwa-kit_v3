@@ -1,0 +1,32 @@
+{
+    "hooks": [
+        {
+            "name": "dw.ocapi.shop.basket.shipment.shipping_address.afterPUT",
+            "script": "./cartridge/scripts/hooks/shippingAddress.js"
+        },
+        {
+            "name": "dw.ocapi.shop.order.beforePOST",
+            "script": "./cartridge/scripts/hooks/orderHooks.js"
+        },
+        {
+            "name": "dw.ocapi.shop.order.afterPOST",
+            "script": "./cartridge/scripts/hooks/orderHooks.js"
+        },
+        {
+            "name": "dw.ocapi.shop.basket.shipment.shipping_method.afterPUT",
+            "script": "./cartridge/scripts/hooks/shippingMethodHooks.js"
+        },
+        {
+            "name": "dw.ocapi.shop.basket.coupon.afterPOST",
+            "script": "./cartridge/scripts/hooks/couponHooks.js"
+        },
+        {
+            "name": "dw.ocapi.shop.basket.coupon.afterDELETE",
+            "script": "./cartridge/scripts/hooks/couponHooks.js"
+        },
+        {
+            "name": "dw.ocapi.shop.basket.payment_instrument.afterPOST",
+            "script": "./cartridge/scripts/hooks/paymentInstrument.js"
+        }
+    ]
+}
