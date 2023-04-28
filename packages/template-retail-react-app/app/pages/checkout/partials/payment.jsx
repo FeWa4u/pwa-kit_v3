@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
  */
-import React, {useState} from 'react'
+import React, {useCallback, useRef, useState} from 'react'
 import PropTypes from 'prop-types'
 import {FormattedMessage, useIntl} from 'react-intl'
 import {Box, Button, Checkbox, Container, Heading, Stack, Text, Divider} from '@chakra-ui/react'
@@ -13,13 +13,13 @@ import {useToast} from '../../../hooks/use-toast'
 import {useShopperBasketsMutation} from 'commerce-sdk-react-preview'
 import {useCurrentBasket} from '../../../hooks/use-current-basket'
 import {useCheckout} from '../util/checkout-context'
-import {getPaymentInstrumentCardType, getCreditCardIcon} from '../../../utils/cc-utils'
 import {ToggleCard, ToggleCardEdit, ToggleCardSummary} from '../../../components/toggle-card'
-import PaymentForm from './payment-form'
+import {PaymentElement} from '@stripe/react-stripe-js'
 import ShippingAddressSelection from './shipping-address-selection'
 import AddressDisplay from '../../../components/address-display'
 import {PromoCode, usePromoCode} from '../../../components/promo-code'
 import {API_ERROR_MESSAGE} from '../../../constants'
+import {useCreateStripeOrder} from '../../../hooks/use-custom-stripe'
 
 const Payment = () => {
     const {formatMessage} = useIntl()
@@ -28,14 +28,16 @@ const Payment = () => {
     const selectedBillingAddress = basket?.billingAddress
     const appliedPayment = basket?.paymentInstruments && basket?.paymentInstruments[0]
     const [billingSameAsShipping, setBillingSameAsShipping] = useState(true) // By default, have billing addr to be the same as shipping
+    const [paymentInfoComplete, setPaymentInfoComplete] = useState(false)
+    const [isLoading, setIsLoading] = useState(false)
+    const createStripeOrder = useCreateStripeOrder()
+
+    const paymentType = useRef(null)
     const {mutateAsync: addPaymentInstrumentToBasket} = useShopperBasketsMutation(
         'addPaymentInstrumentToBasket'
     )
     const {mutateAsync: updateBillingAddressForBasket} = useShopperBasketsMutation(
         'updateBillingAddressForBasket'
-    )
-    const {mutateAsync: removePaymentInstrumentFromBasket} = useShopperBasketsMutation(
-        'removePaymentInstrumentFromBasket'
     )
     const showToast = useToast()
     const showError = () => {
@@ -45,7 +47,7 @@ const Payment = () => {
         })
     }
 
-    const {step, STEPS, goToStep, goToNextStep} = useCheckout()
+    const {step, STEPS, goToStep} = useCheckout()
 
     const billingAddressForm = useForm({
         mode: 'onChange',
@@ -59,19 +61,12 @@ const Payment = () => {
 
     const paymentMethodForm = useForm()
 
-    const onPaymentSubmit = async (formValue) => {
-        // The form gives us the expiration date as `MM/YY` - so we need to split it into
-        // month and year to submit them as individual fields.
-        const [expirationMonth, expirationYear] = formValue.expiry.split('/')
-
+    const onPaymentSubmit = async () => {
         const paymentInstrument = {
-            paymentMethodId: 'CREDIT_CARD',
+            paymentMethodId: 'STRIPE_PAYMENT_ELEMENT',
+            amount: basket.orderTotal,
             paymentCard: {
-                holder: formValue.holder,
-                issueNumber: formValue.number.replace(/ /g, ''),
-                cardType: getPaymentInstrumentCardType(formValue.cardType),
-                expirationMonth: parseInt(expirationMonth),
-                expirationYear: parseInt(`20${expirationYear}`)
+                cardType: paymentType.current
             }
         }
 
@@ -80,6 +75,7 @@ const Payment = () => {
             body: paymentInstrument
         })
     }
+    
     const onBillingSubmit = async () => {
         const isFormValid = await billingAddressForm.trigger()
 
@@ -97,26 +93,50 @@ const Payment = () => {
             parameters: {basketId: basket.basketId, shipmentId: 'me'}
         })
     }
-    const onPaymentRemoval = async () => {
+
+    const onSubmit = paymentMethodForm.handleSubmit(async () => {
         try {
-            await removePaymentInstrumentFromBasket({
-                parameters: {
-                    basketId: basket.basketId,
-                    paymentInstrumentId: appliedPayment.paymentInstrumentId
-                }
-            })
-        } catch (e) {
+            setIsLoading(true)
+            if (!appliedPayment) {
+                await onPaymentSubmit()
+            }
+            await onBillingSubmit()
+    
+            await submitOrder()
+        } catch (error) {
             showError()
+        } finally {
+            setIsLoading(false)
+        }
+    })
+
+    const updatePaymentType = (newType) => {
+        if (paymentType.current !== newType) {
+            paymentType.current = newType
         }
     }
 
-    const onSubmit = paymentMethodForm.handleSubmit(async (paymentFormValues) => {
-        if (!appliedPayment) {
-            await onPaymentSubmit(paymentFormValues)
+    const onPaymentElementChange = useCallback(
+        (event) => {
+            if (event.value) {
+                updatePaymentType(event.value.type)
+            }
+            setPaymentInfoComplete(event.complete)
+        },
+        [updatePaymentType]
+    )
+
+    const submitOrder = async () => {
+        try {
+            createStripeOrder.createOrder()
+        } catch (error) {
+            const message = formatMessage({
+                id: 'checkout.message.generic_error',
+                defaultMessage: 'An unexpected error occurred during checkout.'
+            })
+            setError(message)
         }
-        await onBillingSubmit()
-        goToNextStep()
-    })
+    }
 
     return (
         <ToggleCard
@@ -124,6 +144,7 @@ const Payment = () => {
             title={formatMessage({defaultMessage: 'Payment', id: 'checkout_payment.title.payment'})}
             editing={step === STEPS.PAYMENT}
             isLoading={
+                isLoading ||
                 paymentMethodForm.formState.isSubmitting ||
                 billingAddressForm.formState.isSubmitting
             }
@@ -136,32 +157,11 @@ const Payment = () => {
                 </Box>
 
                 <Stack spacing={6}>
-                    {!appliedPayment?.paymentCard ? (
-                        <PaymentForm form={paymentMethodForm} onSubmit={onPaymentSubmit} />
-                    ) : (
-                        <Stack spacing={3}>
-                            <Heading as="h3" fontSize="md">
-                                <FormattedMessage
-                                    defaultMessage="Credit Card"
-                                    id="checkout_payment.heading.credit_card"
-                                />
-                            </Heading>
-                            <Stack direction="row" spacing={4}>
-                                <PaymentCardSummary payment={appliedPayment} />
-                                <Button
-                                    variant="link"
-                                    size="sm"
-                                    colorScheme="red"
-                                    onClick={onPaymentRemoval}
-                                >
-                                    <FormattedMessage
-                                        defaultMessage="Remove"
-                                        id="checkout_payment.action.remove"
-                                    />
-                                </Button>
-                            </Stack>
-                        </Stack>
-                    )}
+                    <PaymentElement
+                        id="payment-element"
+                        options={{layout: 'accordion'}}
+                        onChange={onPaymentElementChange}
+                    />
 
                     <Divider borderColor="gray.100" />
 
@@ -203,67 +203,18 @@ const Payment = () => {
 
                     <Box pt={3}>
                         <Container variant="form">
-                            <Button w="full" onClick={onSubmit}>
+                            <Button w="full" onClick={onSubmit} disabled={!paymentInfoComplete}>
                                 <FormattedMessage
-                                    defaultMessage="Review Order"
-                                    id="checkout_payment.button.review_order"
+                                    defaultMessage="Place Order"
+                                    id="checkout.button.place_order"
                                 />
                             </Button>
                         </Container>
                     </Box>
                 </Stack>
             </ToggleCardEdit>
-
-            <ToggleCardSummary>
-                <Stack spacing={6}>
-                    {appliedPayment && (
-                        <Stack spacing={3}>
-                            <Heading as="h3" fontSize="md">
-                                <FormattedMessage
-                                    defaultMessage="Credit Card"
-                                    id="checkout_payment.heading.credit_card"
-                                />
-                            </Heading>
-                            <PaymentCardSummary payment={appliedPayment} />
-                        </Stack>
-                    )}
-
-                    <Divider borderColor="gray.100" />
-
-                    {selectedBillingAddress && (
-                        <Stack spacing={2}>
-                            <Heading as="h3" fontSize="md">
-                                <FormattedMessage
-                                    defaultMessage="Billing Address"
-                                    id="checkout_payment.heading.billing_address"
-                                />
-                            </Heading>
-                            <AddressDisplay address={selectedBillingAddress} />
-                        </Stack>
-                    )}
-                </Stack>
-            </ToggleCardSummary>
         </ToggleCard>
     )
 }
-
-const PaymentCardSummary = ({payment}) => {
-    const CardIcon = getCreditCardIcon(payment?.paymentCard?.cardType)
-    return (
-        <Stack direction="row" alignItems="center" spacing={3}>
-            {CardIcon && <CardIcon layerStyle="ccIcon" />}
-
-            <Stack direction="row">
-                <Text>{payment.paymentCard.cardType}</Text>
-                <Text>&bull;&bull;&bull;&bull; {payment.paymentCard.numberLastDigits}</Text>
-                <Text>
-                    {payment.paymentCard.expirationMonth}/{payment.paymentCard.expirationYear}
-                </Text>
-            </Stack>
-        </Stack>
-    )
-}
-
-PaymentCardSummary.propTypes = {payment: PropTypes.object}
 
 export default Payment

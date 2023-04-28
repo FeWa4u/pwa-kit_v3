@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
  */
-import React, {Fragment, useEffect} from 'react'
+import React, {Fragment, useEffect, useRef} from 'react'
 import {FormattedMessage, FormattedNumber} from 'react-intl'
 import {
     Box,
@@ -21,10 +21,15 @@ import {
     Divider
 } from '@chakra-ui/react'
 import {useForm} from 'react-hook-form'
-import {useParams} from 'react-router-dom'
-import {useOrder, useProducts, useAuthHelper, AuthHelpers} from 'commerce-sdk-react-preview'
+import {useParams, useLocation} from 'react-router-dom'
+import {useOrder, useProducts, useShopperBasketsMutation, useAuthHelper, AuthHelpers} from 'commerce-sdk-react-preview'
 import {getCreditCardIcon} from '../../utils/cc-utils'
+import CheckoutSkeleton from './partials/checkout-skeleton'
 import useNavigation from '../../hooks/use-navigation'
+import {useToast} from '../../hooks/use-toast'
+import {useIntl} from 'react-intl'
+import {useCurrentBasket} from '../../hooks/use-current-basket'
+import {useFailedPayment} from '../../hooks/use-custom-stripe'
 import Link from '../../components/link'
 import AddressDisplay from '../../components/address-display'
 import PostCheckoutRegistrationFields from '../../components/forms/post-checkout-registration-fields'
@@ -35,15 +40,27 @@ import CartItemVariantName from '../../components/item-variant/item-name'
 import CartItemVariantAttributes from '../../components/item-variant/item-attributes'
 import CartItemVariantPrice from '../../components/item-variant/item-price'
 import {useCurrentCustomer} from '../../hooks/use-current-customer'
-import {API_ERROR_MESSAGE} from '../../constants'
+import {API_ERROR_MESSAGE, HOME_HREF} from '../../constants'
 
 const onClient = typeof window !== 'undefined'
 
 const CheckoutConfirmation = () => {
+    const {formatMessage} = useIntl()
     const {orderNo} = useParams()
     const navigate = useNavigation()
     const {data: customer} = useCurrentCustomer()
     const register = useAuthHelper(AuthHelpers.Register)
+    const toast = useToast()
+    const location = useLocation()
+    const {data: basket} = useCurrentBasket()
+    const {recreateBasketFromOrder} = useFailedPayment()
+
+    const queryParams = new URLSearchParams(location.search)
+    const status = queryParams.get('redirect_status')
+    const clientSecret = queryParams.get('payment_intent_client_secret')
+
+    const isFailedPayment = useRef(false)
+
     const {data: order} = useOrder(
         {
             parameters: {orderNo}
@@ -66,8 +83,33 @@ const CheckoutConfirmation = () => {
         })
     }, [order])
 
-    if (!order || !order.orderNo) {
-        return null
+    useEffect(async () => {
+        if (!isFailedPayment.current) {
+            if (status === 'failed' && customer?.customerId) {
+                isFailedPayment.current = true
+
+                toast({
+                    title: formatMessage({
+                        defaultMessage: 'Payment failed. You will be routed back to the checkout',
+                        id: 'checkout_payment.failed.routing'
+                    }),
+                    status: 'error'
+                })
+
+                await recreateBasketFromOrder(order, clientSecret)
+                navigate('/checkout', 'replace')
+            }
+        }
+    }, [basket, customer])
+
+    if (!orderNo) {
+        navigate(HOME_HREF, 'replace')
+    }
+
+    if (!order || !order.orderNo || status === 'failed') {
+        // TODO: Handle order not found or not authorized
+
+        return <CheckoutSkeleton />
     }
 
     const CardIcon = getCreditCardIcon(order.paymentInstruments[0].paymentCard?.cardType)

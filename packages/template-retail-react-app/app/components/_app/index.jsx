@@ -5,7 +5,7 @@
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
  */
 
-import React, {useState, useEffect} from 'react'
+import React, {useState, useEffect, useRef} from 'react'
 import PropTypes from 'prop-types'
 import {useHistory, useLocation} from 'react-router-dom'
 import {getAssetUrl} from 'pwa-kit-react-sdk/ssr/universal/utils'
@@ -45,6 +45,8 @@ import {AuthModal, useAuthModal} from '../../hooks/use-auth-modal'
 import {AddToCartModalProvider} from '../../hooks/use-add-to-cart-modal'
 import useMultiSite from '../../hooks/use-multi-site'
 import {useCurrentCustomer} from '../../hooks/use-current-customer'
+import {useToast} from '../../hooks/use-toast'
+import {useFailedPayment} from '../../hooks/use-custom-stripe'
 
 // Localization
 import {IntlProvider} from 'react-intl'
@@ -60,6 +62,7 @@ import {
     CAT_MENU_DEFAULT_ROOT_CATEGORY,
     DEFAULT_LOCALE
 } from '../../constants'
+import {useCreateOrderStore} from '../../stores/isCreatingOrder'
 
 import Seo from '../seo'
 
@@ -107,6 +110,7 @@ const App = (props) => {
     const history = useHistory()
     const location = useLocation()
     const authModal = useAuthModal()
+    const toast = useToast()
     const {isRegistered} = useCustomerType()
     const {site, locale, buildUrl} = useMultiSite()
 
@@ -114,6 +118,11 @@ const App = (props) => {
     const styles = useStyleConfig('App')
 
     const {isOpen, onOpen, onClose} = useDisclosure()
+    const isCreatingOrder = useCreateOrderStore((state) => state.isCreatingOrder)
+    const isRecreatingBasket = useRef(false)
+
+    const queryParams = new URLSearchParams(location?.search)
+    const status = queryParams.get('redirect_status')
 
     const targetLocale = getTargetLocale({
         getUserPreferredLocales: () => {
@@ -156,8 +165,34 @@ const App = (props) => {
     )
     const createBasket = useShopperBasketsMutation('createBasket')
     const updateBasket = useShopperBasketsMutation('updateBasket')
+    const {recreateBasketFromOrder} = useFailedPayment()
 
-    useEffect(() => {
+    useEffect(async () => {
+        if (isCreatingOrder || status === 'failed' && location?.pathname.match(/checkout\/confirmation/i)) {
+            return
+        }
+
+        if (
+            sessionStorage.getItem('basket') &&
+            !location?.pathname.match(/checkout\/confirmation/i) &&
+            history.action === 'POP' && 
+            isRecreatingBasket.current === false
+        ) {
+            if (!customer.customerId) {
+                return
+            }
+
+            isRecreatingBasket.current = true
+            await recreateBasketFromOrder()
+            isRecreatingBasket.current = false
+
+            toast({
+                title: 'Seems like you did not complete your order. We are trying to recreate your basket. Please check and try again.',
+                status: 'error'
+            })
+            return
+        }
+
         // Create a new basket if the current customer doesn't have one.
         if (baskets?.total === 0) {
             createBasket.mutate({
