@@ -23,5 +23,10 @@
   "engines": {
     "node": "^16.0.0 || ^18.0.0",
     "npm": "^7.0.0 || ^8.0.0 || ^9.0.0"
+  },
+  "dependencies": {
+    "@stripe/react-stripe-js": "^2.1.0",
+    "@stripe/stripe-js": "^1.52.1",
+    "zustand": "^4.3.7"
   }
 }
