@@ -29,18 +29,18 @@ export const CheckoutProvider = ({children}) => {
     const getCheckoutStepName = (step) => CHECKOUT_STEPS_LIST[step]
 
     useEffect(async () => {
-        if (!customer || !basket) {
+        if (!customer || !basket || step) {
             return
         }
 
-        let step = STEPS.PAYMENT
+        let newStep = STEPS.PAYMENT
 
         if (customer.isGuest && !basket.customerInfo?.email) {
-            step = STEPS.CONTACT_INFO
+            newStep = STEPS.CONTACT_INFO
         } else if (!basket.shipments[0]?.shippingAddress) {
-            step = STEPS.SHIPPING_ADDRESS
+            newStep = STEPS.SHIPPING_ADDRESS
         } else if (!basket.shipments[0]?.shippingMethod) {
-            step = STEPS.SHIPPING_OPTIONS
+            newStep = STEPS.SHIPPING_OPTIONS
         }
 
         let paymentInstrumentId =
@@ -55,7 +55,7 @@ export const CheckoutProvider = ({children}) => {
             })
         }
 
-        setStep(step)
+        setStep(newStep)
     }, [
         customer?.isGuest,
         basket?.customerInfo?.email,

@@ -93,6 +93,17 @@ const CheckoutConfirmation = () => {
             if (status === 'failed' && customer?.customerId && order?.orderNo && clientSecret) {
                 isFailedPayment.current = true
 
+                let inputOrder = order
+
+                if (!order.customerInfo.email) {
+                    if (customer.email) {
+                        inputOrder.customerInfo.email = customer.email
+                    } else {
+                        isFailedPayment.current = false
+                        return
+                    }
+                }
+
                 toast({
                     title: formatMessage({
                         defaultMessage: 'Payment failed. You will be routed back to the checkout',
