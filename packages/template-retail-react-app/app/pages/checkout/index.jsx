@@ -15,6 +15,8 @@ import OrderSummary from '../../components/order-summary'
 import {useCurrentCustomer} from '../../hooks/use-current-customer'
 import {useCurrentBasket} from '../../hooks/use-current-basket'
 import CheckoutSkeleton from './partials/checkout-skeleton'
+import {useCreateOrderStore} from '../../stores/isCreatingOrder'
+import LoadingSpinner from '../../components/loading-spinner'
 
 import {loadStripe} from '@stripe/stripe-js'
 import {Elements} from '@stripe/react-stripe-js'
@@ -90,8 +92,15 @@ const CheckoutContainer = () => {
     const {data: customer} = useCurrentCustomer()
     const {data: basket} = useCurrentBasket()
 
+    const isCreatingOrder = useCreateOrderStore((state) => state.isCreatingOrder)
+
     if (!customer || !customer.customerId || !basket || !basket.basketId) {
-        return <CheckoutSkeleton />
+        return (
+            <Box>
+                <CheckoutSkeleton />
+                {isCreatingOrder && <LoadingSpinner />}
+            </Box>
+        )
     }
 
     return (

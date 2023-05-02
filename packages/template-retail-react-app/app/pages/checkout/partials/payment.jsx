@@ -99,12 +99,13 @@ const Payment = () => {
             if (!appliedPayment) {
                 await onPaymentSubmit()
             }
-            await onBillingSubmit()
 
-            await submitOrder()
+            await onBillingSubmit()
+            await createStripeOrder.createOrder()
+
+            setIsLoading(false)
         } catch (error) {
             showError()
-        } finally {
             setIsLoading(false)
         }
     })
@@ -124,14 +125,6 @@ const Payment = () => {
         },
         [updatePaymentType]
     )
-
-    const submitOrder = async () => {
-        try {
-            createStripeOrder.createOrder()
-        } catch (error) {
-            showError()
-        }
-    }
 
     return (
         <ToggleCard

@@ -41,6 +41,7 @@ import CartItemVariantAttributes from '../../components/item-variant/item-attrib
 import CartItemVariantPrice from '../../components/item-variant/item-price'
 import {useCurrentCustomer} from '../../hooks/use-current-customer'
 import {API_ERROR_MESSAGE, HOME_HREF} from '../../constants'
+import {useCreateOrderStore} from '../../stores/isCreatingOrder'
 
 const onClient = typeof window !== 'undefined'
 
@@ -54,6 +55,7 @@ const CheckoutConfirmation = () => {
     const location = useLocation()
     const {data: basket} = useCurrentBasket()
     const {recreateBasketFromOrder} = useFailedPayment()
+    const setIsCreatingOrder = useCreateOrderStore((state) => state.setIsCreatingOrder)
 
     const queryParams = new URLSearchParams(location.search)
     const status = queryParams.get('redirect_status')
@@ -85,7 +87,10 @@ const CheckoutConfirmation = () => {
 
     useEffect(async () => {
         if (!isFailedPayment.current) {
-            if (status === 'failed' && customer?.customerId) {
+            sessionStorage.removeItem('basket')
+            setIsCreatingOrder(false)
+
+            if (status === 'failed' && customer?.customerId && order?.orderNo && clientSecret) {
                 isFailedPayment.current = true
 
                 toast({
@@ -100,7 +105,7 @@ const CheckoutConfirmation = () => {
                 navigate('/checkout', 'replace')
             }
         }
-    }, [basket, customer])
+    }, [basket, customer, order, clientSecret, status])
 
     if (!orderNo) {
         navigate(HOME_HREF, 'replace')
