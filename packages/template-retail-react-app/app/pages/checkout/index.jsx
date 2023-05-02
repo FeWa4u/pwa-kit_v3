@@ -4,10 +4,8 @@
  * SPDX-License-Identifier: BSD-3-Clause
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
  */
-import React, {useEffect, useRef, useState} from 'react'
-import {FormattedMessage, useIntl} from 'react-intl'
-import {Alert, AlertIcon, Box, Button, Container, Grid, GridItem, Stack} from '@chakra-ui/react'
-import useNavigation from '../../hooks/use-navigation'
+import React, {useEffect, useState} from 'react'
+import {Alert, AlertIcon, Box, Container, Grid, GridItem, Stack} from '@chakra-ui/react'
 import {CheckoutProvider, useCheckout} from './util/checkout-context'
 import ContactInfo from './partials/contact-info'
 import ShippingAddress from './partials/shipping-address'
@@ -17,7 +15,6 @@ import OrderSummary from '../../components/order-summary'
 import {useCurrentCustomer} from '../../hooks/use-current-customer'
 import {useCurrentBasket} from '../../hooks/use-current-basket'
 import CheckoutSkeleton from './partials/checkout-skeleton'
-import {useUsid, useShopperBasketsMutation, useShopperOrdersMutation} from 'commerce-sdk-react-preview'
 
 import {loadStripe} from '@stripe/stripe-js'
 import {Elements} from '@stripe/react-stripe-js'
@@ -27,13 +24,9 @@ const {stripePublicKey} = getConfig()
 const stripePromise = loadStripe(stripePublicKey)
 
 const Checkout = () => {
-    const {formatMessage} = useIntl()
-    const navigate = useNavigation()
-    const usid = useUsid()
     const {step} = useCheckout()
     const [error, setError] = useState()
     const {data: basket} = useCurrentBasket()
-    const {mutateAsync: createOrder} = useShopperOrdersMutation('createOrder')
 
     useEffect(() => {
         if (error || step === 4) {
@@ -72,10 +65,10 @@ const Checkout = () => {
                                     // when the c_stripeClientSecret changes. DO NOT REMOVE THIS KEY!
                                     key={basket.c_stripeClientSecret}
                                 >
-                                    <Payment/>
+                                    <Payment />
                                 </Elements>
                             ) : (
-                                "Something went wrong"
+                                'Something went wrong'
                             )}
                         </Stack>
                     </GridItem>

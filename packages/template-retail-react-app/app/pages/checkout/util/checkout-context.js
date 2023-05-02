@@ -23,12 +23,7 @@ export const CheckoutProvider = ({children}) => {
         'removePaymentInstrumentFromBasket'
     )
 
-    const CHECKOUT_STEPS_LIST = [
-        'CONTACT_INFO',
-        'SHIPPING_ADDRESS',
-        'SHIPPING_OPTIONS',
-        'PAYMENT'
-    ]
+    const CHECKOUT_STEPS_LIST = ['CONTACT_INFO', 'SHIPPING_ADDRESS', 'SHIPPING_OPTIONS', 'PAYMENT']
     const STEPS = CHECKOUT_STEPS_LIST.reduce((acc, step, idx) => ({...acc, [step]: idx}), {})
 
     const getCheckoutStepName = (step) => CHECKOUT_STEPS_LIST[step]
@@ -49,8 +44,7 @@ export const CheckoutProvider = ({children}) => {
         }
 
         let paymentInstrumentId =
-            basket.paymentInstruments &&
-            basket.paymentInstruments[0]?.paymentInstrumentId
+            basket.paymentInstruments && basket.paymentInstruments[0]?.paymentInstrumentId
 
         if (paymentInstrumentId) {
             await removePaymentInstrumentFromBasket({

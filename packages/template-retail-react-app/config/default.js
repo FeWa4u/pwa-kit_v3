@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2021, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
+ */
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const sites = require('./sites.js')
 module.exports = {
     app: {
@@ -48,5 +55,5 @@ module.exports = {
         ]
     },
     stripePublicKey:
-        'pk_test_51JUBJ2Dkv9ywW0vORN1zfG2bVpAsbWW03BPg8c8Bygaq1ZPJdypkRm3YOnlV8gBipZDmYjCrTS22WfqHYVNkBm4z00WHCABZkn',
+        'pk_test_51JUBJ2Dkv9ywW0vORN1zfG2bVpAsbWW03BPg8c8Bygaq1ZPJdypkRm3YOnlV8gBipZDmYjCrTS22WfqHYVNkBm4z00WHCABZkn'
 }

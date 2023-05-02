@@ -41,7 +41,12 @@ const {handler} = runtime.createHandler(options, (app) => {
                 useDefaults: true,
                 directives: {
                     'img-src': ["'self'", '*.commercecloud.salesforce.com', 'data:'],
-                    'script-src': ["'self'", "'unsafe-eval'", 'storage.googleapis.com','js.stripe.com'],
+                    'script-src': [
+                        "'self'",
+                        "'unsafe-eval'",
+                        'storage.googleapis.com',
+                        'js.stripe.com'
+                    ],
                     'frame-src': ["'self'", 'js.stripe.com'],
                     'connect-src': ["'self'", 'api.cquotient.com'],
 

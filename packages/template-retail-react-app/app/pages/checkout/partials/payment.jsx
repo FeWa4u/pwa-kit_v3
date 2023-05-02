@@ -5,7 +5,6 @@
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
  */
 import React, {useCallback, useRef, useState} from 'react'
-import PropTypes from 'prop-types'
 import {FormattedMessage, useIntl} from 'react-intl'
 import {Box, Button, Checkbox, Container, Heading, Stack, Text, Divider} from '@chakra-ui/react'
 import {useForm} from 'react-hook-form'
@@ -13,13 +12,13 @@ import {useToast} from '../../../hooks/use-toast'
 import {useShopperBasketsMutation} from 'commerce-sdk-react-preview'
 import {useCurrentBasket} from '../../../hooks/use-current-basket'
 import {useCheckout} from '../util/checkout-context'
-import {ToggleCard, ToggleCardEdit, ToggleCardSummary} from '../../../components/toggle-card'
+import {ToggleCard, ToggleCardEdit} from '../../../components/toggle-card'
 import {PaymentElement} from '@stripe/react-stripe-js'
 import ShippingAddressSelection from './shipping-address-selection'
 import AddressDisplay from '../../../components/address-display'
 import {PromoCode, usePromoCode} from '../../../components/promo-code'
 import {API_ERROR_MESSAGE} from '../../../constants'
-import {useCreateStripeOrder} from '../../../hooks/use-custom-stripe'
+import {useCreateStripeOrder} from '../../../hooks/stripe'
 
 const Payment = () => {
     const {formatMessage} = useIntl()
@@ -75,7 +74,7 @@ const Payment = () => {
             body: paymentInstrument
         })
     }
-    
+
     const onBillingSubmit = async () => {
         const isFormValid = await billingAddressForm.trigger()
 
@@ -101,7 +100,7 @@ const Payment = () => {
                 await onPaymentSubmit()
             }
             await onBillingSubmit()
-    
+
             await submitOrder()
         } catch (error) {
             showError()
@@ -130,11 +129,7 @@ const Payment = () => {
         try {
             createStripeOrder.createOrder()
         } catch (error) {
-            const message = formatMessage({
-                id: 'checkout.message.generic_error',
-                defaultMessage: 'An unexpected error occurred during checkout.'
-            })
-            setError(message)
+            showError()
         }
     }
 
@@ -157,11 +152,13 @@ const Payment = () => {
                 </Box>
 
                 <Stack spacing={6}>
-                    <PaymentElement
-                        id="payment-element"
-                        options={{layout: 'accordion'}}
-                        onChange={onPaymentElementChange}
-                    />
+                    <Box data-testid="payment-element-wrapper">
+                        <PaymentElement
+                            id="payment-element"
+                            options={{layout: 'accordion'}}
+                            onChange={onPaymentElementChange}
+                        />
+                    </Box>
 
                     <Divider borderColor="gray.100" />
 

@@ -1,18 +1,25 @@
+/*
+ * Copyright (c) 2021, salesforce.com, inc.
+ * All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
+ */
 import {useStripe, useElements} from '@stripe/react-stripe-js'
 import {getAppOrigin} from 'pwa-kit-react-sdk/utils/url'
 import {useIntl} from 'react-intl'
 import {useToast} from './use-toast'
 import {API_ERROR_MESSAGE} from '../constants'
 
-import {
-    useQueryClient,
-} from '@tanstack/react-query';
+import {useQueryClient} from '@tanstack/react-query'
 
 import {useCurrentBasket} from './use-current-basket'
-import {useCurrentCustomer} from './use-current-customer'
 import {useCreateOrderStore} from '../stores/isCreatingOrder'
 
-import {useUsid, useShopperBasketsMutation, useShopperOrdersMutation} from 'commerce-sdk-react-preview'
+import {
+    useUsid,
+    useShopperBasketsMutation,
+    useShopperOrdersMutation
+} from 'commerce-sdk-react-preview'
 
 export const useCreateStripeOrder = () => {
     const {formatMessage} = useIntl()
@@ -24,7 +31,6 @@ export const useCreateStripeOrder = () => {
 
     const {mutateAsync: createOrder} = useShopperOrdersMutation('createOrder')
     const {data: basket} = useCurrentBasket()
-    const {data: customer} = useCurrentCustomer()
 
     const {recreateBasketFromOrder} = useFailedPayment()
 
@@ -101,26 +107,31 @@ export const useFailedPayment = () => {
             sessionStorage.removeItem('basket')
 
             if (basket && basket.basketId && basket.productItems?.length > 0) {
-                await createBasket.mutateAsync(
-                    {
-                        body: basket
-                    }
-                )
+                await createBasket.mutateAsync({body: basket})
             } else if (orderData && orderData.productItems?.length > 0) {
-                const {createdBy, confirmationStatus, customerName, exportStatus, orderNo, orderToken, paymentStatus, shippingStatus, siteId, status, ...basketInput} = orderData
+                const {
+                    createdBy,
+                    confirmationStatus,
+                    customerName,
+                    exportStatus,
+                    orderNo,
+                    orderToken,
+                    paymentStatus,
+                    shippingStatus,
+                    siteId,
+                    status,
+                    ...basketInput
+                } = orderData
+
                 basketInput.c_stripeClientSecret = clientSecret
 
-                await createBasket.mutateAsync(
-                    {
-                        body: basketInput
-                    }
-                )
-            } else if (storageBasket && storageBasket.basketId && storageBasket.productItems?.length > 0) {
-                await createBasket.mutateAsync(
-                    {
-                        body: storageBasket
-                    }
-                )
+                await createBasket.mutateAsync({body: basketInput})
+            } else if (
+                storageBasket &&
+                storageBasket.basketId &&
+                storageBasket.productItems?.length > 0
+            ) {
+                await createBasket.mutateAsync({body: storageBasket})
             }
 
             setIsCreatingOrder(false)

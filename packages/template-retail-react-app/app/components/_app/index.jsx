@@ -46,7 +46,7 @@ import {AddToCartModalProvider} from '../../hooks/use-add-to-cart-modal'
 import useMultiSite from '../../hooks/use-multi-site'
 import {useCurrentCustomer} from '../../hooks/use-current-customer'
 import {useToast} from '../../hooks/use-toast'
-import {useFailedPayment} from '../../hooks/use-custom-stripe'
+import {useFailedPayment} from '../../hooks/stripe'
 
 // Localization
 import {IntlProvider} from 'react-intl'
@@ -168,14 +168,17 @@ const App = (props) => {
     const {recreateBasketFromOrder} = useFailedPayment()
 
     useEffect(async () => {
-        if (isCreatingOrder || status === 'failed' && location?.pathname.match(/checkout\/confirmation/i)) {
+        if (
+            isCreatingOrder ||
+            (status === 'failed' && location?.pathname.match(/checkout\/confirmation/i))
+        ) {
             return
         }
 
         if (
             sessionStorage.getItem('basket') &&
             !location?.pathname.match(/checkout\/confirmation/i) &&
-            history.action === 'POP' && 
+            history.action === 'POP' &&
             isRecreatingBasket.current === false
         ) {
             if (!customer.customerId) {
