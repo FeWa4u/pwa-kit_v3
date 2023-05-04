@@ -5,23 +5,20 @@
 function updatePaymentIntentAmount(basket) {
     var HookMgr = require('dw/system/HookMgr')
     var totalBeforeRecalc = basket.getTotalGrossPrice().value
-
     HookMgr.callHook('dw.order.calculate', 'calculate', basket)
+
     var basketTotal = basket.getTotalGrossPrice().value
+    var basketCurrencyCode = basket.getCurrencyCode()
+    var basketCurrency = dw.util.Currency.getCurrency(basketCurrencyCode)
+    var multiplier = Math.pow(10, basketCurrency.getDefaultFractionDigits())
+    var amount = Math.round(basketTotal * multiplier)
 
     if (
         basket.custom &&
         basket.custom.stripePaymentIntentID &&
         (totalBeforeRecalc !== basketTotal ||
-            basket.custom.stripePaymentIntentAmount !== basketTotal)
+            basket.custom.stripePaymentIntentAmount !== amount)
     ) {
-        var basketCurrencyCode = basket.getCurrencyCode()
-        var basketCurrency = dw.util.Currency.getCurrency(basketCurrencyCode)
-
-        var multiplier = Math.pow(10, basketCurrency.getDefaultFractionDigits())
-
-        var amount = Math.round(basketTotal * multiplier)
-
         var updatePaymentIntentPayload = {
             amount
         }
