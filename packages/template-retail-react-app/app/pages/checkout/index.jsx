@@ -20,7 +20,7 @@ import LoadingSpinner from '../../components/loading-spinner'
 import {useIntl} from 'react-intl'
 import {useToast} from '../../hooks/use-toast'
 import useNavigation from '../../hooks/use-navigation'
-import {getAppOrigin} from 'pwa-kit-react-sdk/utils/url'
+import {useCreatePaymentIntent} from './util/checkout-request-helper'
 
 import {useShopperBasketsMutation} from 'commerce-sdk-react-preview'
 
@@ -101,52 +101,55 @@ const CheckoutContainer = () => {
     const {data: customer} = useCurrentCustomer()
     const {data: basket} = useCurrentBasket()
     const isCreatingPI = useRef(false)
+    const createPaymentIntent = useCreatePaymentIntent()
 
     const updateBasket = useShopperBasketsMutation('updateBasket')
     const isCreatingOrder = useCreateOrderStore((state) => state.isCreatingOrder)
 
-    useEffect(async() => {
+    const handleError = () => {
+        toast({
+            title: formatMessage({
+                id: 'checkout.message.generic_error',
+                defaultMessage: 'An unexpected error occurred during checkout.'
+            }),
+            status: 'error'
+        })
+        navigate('/cart')
+    }
+
+    const handleCreatePIResponse = async (data) => {
+        const response = data?.ok && await data.json()
+    
+        if (response.error || response?.metadata?.basket_id !== basket.basketId) {
+            handleError()
+        } else {
+            updateBasket.mutate({
+                parameters: {basketId: basket.basketId},
+                body: {
+                    c_stripeClientSecret: response.client_secret,
+                    c_stripePaymentIntentAmount: response.amount,
+                    c_stripePaymentIntentID: response.id,
+                }
+            }, {
+                onError: () => {
+                    handleError()
+                }
+            })
+        }
+    }
+
+    useEffect(() => {
         if (basket && basket.basketId && !isCreatingPI.current && !basket.c_stripeClientSecret) {
             isCreatingPI.current = true
 
-            const amount = String(basket.orderTotal).replace('.', '')
-            const requestOptions = {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    basketId: basket.basketId,
-                    amount,
-                    currency: basket.currency
-                })
-            }
-
-            const proxy = `/mobify/proxy/ocapi`
-            const host = `${getAppOrigin()}${proxy}`
-
-            const response = await fetch(`${host}/on/demandware.store/Sites-${app.commerceAPI.parameters.siteId}-Site/default/Stripe-CreatePI`, requestOptions)
-            const data = response?.ok && await response.json()
-
-            if (data.error || data?.metadata?.basket_id !== basket.basketId) {
-                toast({
-                    title: formatMessage({
-                        id: 'checkout.message.generic_error',
-                        defaultMessage: 'An unexpected error occurred during checkout.'
-                    }),
-                    status: 'error'
-                })
-                navigate('/cart')
-            } else {
-                updateBasket.mutate({
-                    parameters: {basketId: basket.basketId},
-                    body: {
-                        c_stripeClientSecret: data.client_secret,
-                        c_stripePaymentIntentAmount: data.amount,
-                        c_stripePaymentIntentID: data.id,
-                    }
-                })
-            }
+            createPaymentIntent.mutate(basket, {
+                onSuccess: (data) => {
+                    handleCreatePIResponse(data)
+                },
+                onError: () => handleError()
+            })  
         }
-    }, [basket, formatMessage, navigate, toast, updateBasket])
+    }, [basket])
 
     if (!customer || !customer.customerId || !basket || !basket.basketId) {
         return (

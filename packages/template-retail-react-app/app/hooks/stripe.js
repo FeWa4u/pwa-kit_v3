@@ -8,6 +8,7 @@ import {useStripe, useElements} from '@stripe/react-stripe-js'
 import {getAppOrigin} from 'pwa-kit-react-sdk/utils/url'
 import {useIntl} from 'react-intl'
 import {useToast} from './use-toast'
+import useNavigation from './use-navigation'
 import {API_ERROR_MESSAGE} from '../constants'
 
 import {useQueryClient} from '@tanstack/react-query'
@@ -20,6 +21,7 @@ import {
     useShopperBasketsMutation,
     useShopperOrdersMutation
 } from 'commerce-sdk-react-preview'
+import { useFailOrder } from '../pages/checkout/util/checkout-request-helper'
 
 export const useCreateStripeOrder = () => {
     const {formatMessage} = useIntl()
@@ -32,17 +34,14 @@ export const useCreateStripeOrder = () => {
     const {mutateAsync: createOrder} = useShopperOrdersMutation('createOrder')
     const {data: basket} = useCurrentBasket()
 
-    const {recreateBasketFromOrder} = useFailedPayment()
+    const {processFailedPayment} = useFailedPayment()
 
     return {
         async createOrder() {
             const basketId = basket.basketId
             const clientSecret = basket.c_stripeClientSecret
-
             setIsCreatingOrder(true)
-
-            sessionStorage.setItem('basket', JSON.stringify(basket))
-
+            
             const response = await createOrder({
                 headers: {_sfdc_customer_id: usid},
                 body: {basketId: basket.basketId}
@@ -55,12 +54,15 @@ export const useCreateStripeOrder = () => {
             const orderNumber = response.orderNo
             const stripeReturnURL = `${getAppOrigin()}/checkout/confirmation/${orderNumber}?basket_id=${basketId}`
 
+            sessionStorage.setItem('basket', JSON.stringify(basket))
+            sessionStorage.setItem('order_no', orderNumber)
+
             window.addEventListener(
                 'pageshow',
                 async (event) => {
                     if (event.persisted) {
                         try {
-                            recreateBasketFromOrder(response, clientSecret)
+                            processFailedPayment(orderNumber, response, clientSecret)
                         } catch (error) {
                             toast({
                                 title: formatMessage(API_ERROR_MESSAGE),
@@ -89,23 +91,26 @@ export const useCreateStripeOrder = () => {
                     status: 'error'
                 })
 
-                recreateBasketFromOrder(response, clientSecret)
+                processFailedPayment(orderNumber, response, clientSecret)
             }
         }
     }
 }
 
 export const useFailedPayment = () => {
+    const toast = useToast()
+    const navigate = useNavigation()
     const queryClient = useQueryClient()
     const {data: basket} = useCurrentBasket()
+    const failOrder = useFailOrder()
     const createBasket = useShopperBasketsMutation('createBasket')
     const setIsCreatingOrder = useCreateOrderStore((state) => state.setIsCreatingOrder)
 
-    return {
-        async recreateBasketFromOrder(orderData, clientSecret) {
-            let storageBasket = JSON.parse(sessionStorage.getItem('basket'))
-            sessionStorage.removeItem('basket')
+    const recreateBasketFromOrder = async (orderData, clientSecret) => {
+        let storageBasket = JSON.parse(sessionStorage.getItem('basket'))
+        sessionStorage.removeItem('basket')
 
+        try {
             if (basket && basket.basketId && basket.productItems?.length > 0) {
                 await createBasket.mutateAsync({body: basket})
             } else if (orderData && orderData.productItems?.length > 0) {
@@ -136,6 +141,46 @@ export const useFailedPayment = () => {
 
             setIsCreatingOrder(false)
             queryClient.invalidateQueries('baskets')
+
+            sessionStorage.removeItem('basket')
+            sessionStorage.removeItem('order_no')
+        } catch {
+            toast({
+                title: "Something went wrong. Please try again.",
+                status: 'error'
+            })
+
+            sessionStorage.removeItem('basket')
+            sessionStorage.removeItem('order_no')
+            navigate('/cart')
+        }
+    }
+
+    return {
+        async processFailedPayment(orderNo, orderData = null, clientSecret = null) {
+            try {
+                if(!orderNo) {
+                    orderNo = sessionStorage.getItem('order_no')
+
+                    if(!orderNo) {
+                        throw new Error("Order number is missing")
+                    }
+                }
+
+                const result = await failOrder.mutateAsync(orderNo)
+
+                if (result?.ok) {
+                    setIsCreatingOrder(false)
+                    queryClient.invalidateQueries('baskets')
+
+                    sessionStorage.removeItem('basket')
+                    sessionStorage.removeItem('order_no')
+                } else {
+                    throw new Error(result?.error)
+                }
+            } catch {
+                await recreateBasketFromOrder(orderData, clientSecret)
+            }
         }
     }
 }

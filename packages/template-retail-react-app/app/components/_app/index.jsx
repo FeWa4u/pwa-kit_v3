@@ -165,7 +165,7 @@ const App = (props) => {
     )
     const createBasket = useShopperBasketsMutation('createBasket')
     const updateBasket = useShopperBasketsMutation('updateBasket')
-    const {recreateBasketFromOrder} = useFailedPayment()
+    const {processFailedPayment} = useFailedPayment()
 
     useEffect(async () => {
         if (
@@ -176,7 +176,7 @@ const App = (props) => {
         }
 
         if (
-            sessionStorage.getItem('basket') &&
+            sessionStorage.getItem('order_no') &&
             !location?.pathname.match(/checkout\/confirmation/i) &&
             history.action === 'POP' &&
             isRecreatingBasket.current === false
@@ -186,7 +186,7 @@ const App = (props) => {
             }
 
             isRecreatingBasket.current = true
-            await recreateBasketFromOrder()
+            await processFailedPayment(sessionStorage.getItem('order_no') )
             isRecreatingBasket.current = false
 
             toast({

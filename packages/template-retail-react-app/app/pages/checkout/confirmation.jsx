@@ -54,7 +54,7 @@ const CheckoutConfirmation = () => {
     const toast = useToast()
     const location = useLocation()
     const {data: basket} = useCurrentBasket()
-    const {recreateBasketFromOrder} = useFailedPayment()
+    const {processFailedPayment} = useFailedPayment()
     const setIsCreatingOrder = useCreateOrderStore((state) => state.setIsCreatingOrder)
 
     const queryParams = new URLSearchParams(location.search)
@@ -112,7 +112,7 @@ const CheckoutConfirmation = () => {
                     status: 'error'
                 })
 
-                await recreateBasketFromOrder(order, clientSecret)
+                await processFailedPayment(orderNo, order, clientSecret)
                 navigate('/checkout', 'replace')
             }
         }
