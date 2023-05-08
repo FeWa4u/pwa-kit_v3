@@ -17,6 +17,7 @@ import {
 } from '../../utils/test-utils'
 import {
     scapiBasketWithItem,
+    mockStripePaymentIntent,
     mockShippingMethods,
     mockedRegisteredCustomer,
     mockedCustomerProductLists
@@ -190,8 +191,6 @@ test('Can proceed through checkout steps as guest', async () => {
             }
             currentBasket.shipments[0].shippingAddress = shippingBillingAddress
             currentBasket.billingAddress = shippingBillingAddress
-            currentBasket.c_stripeClientSecret = 'pi_123456789'
-            currentBasket.c_stripePaymentIntentID = 'pi_987654321'
             return res(ctx.json(currentBasket))
         }),
 
@@ -258,6 +257,19 @@ test('Can proceed through checkout steps as guest', async () => {
                 total: 1
             }
             return res(ctx.json(baskets))
+        }),
+
+        rest.post('*Stripe-CreatePI', (req, res, ctx) => {
+            return res(ctx.json(mockStripePaymentIntent))
+        }),
+
+        rest.patch('*/*/baskets/:basketId', (req, res, ctx) => {
+            currentBasket.c_stripeClientSecret =
+                'pi_3JeZVzDkv9ywW0vO2K4bxl7X_secret_uKF6OVGuvFlQtcyKjj74QX21U'
+            currentBasket.c_stripePaymentIntentAmount = 2517
+            currentBasket.c_stripePaymentIntentID = 'pi_3JeZVzDkv9ywW0vO2K4bxl7X'
+
+            return res(ctx.json(currentBasket))
         })
     )
 
@@ -499,8 +511,6 @@ const logInDuringCheckout = async () => {
             currentBasket.shipments[0].shippingAddress = shippingBillingAddress
             currentBasket.billingAddress = shippingBillingAddress
 
-            currentBasket.c_stripeClientSecret = 'pi_123456789'
-            currentBasket.c_stripePaymentIntentID = 'pi_987654321'
             return res(ctx.json(currentBasket))
         }),
 
@@ -573,6 +583,19 @@ const logInDuringCheckout = async () => {
                 total: 1
             }
             return res(ctx.json(baskets))
+        }),
+
+        rest.post('*Stripe-CreatePI', (req, res, ctx) => {
+            return res(ctx.json(mockStripePaymentIntent))
+        }),
+
+        rest.patch('*/*/baskets/:basketId', (req, res, ctx) => {
+            currentBasket.c_stripeClientSecret =
+                'pi_3JeZVzDkv9ywW0vO2K4bxl7X_secret_uKF6OVGuvFlQtcyKjj74QX21U'
+            currentBasket.c_stripePaymentIntentAmount = 2517
+            currentBasket.c_stripePaymentIntentID = 'pi_3JeZVzDkv9ywW0vO2K4bxl7X'
+
+            return res(ctx.json(currentBasket))
         })
     )
 

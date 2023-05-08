@@ -186,7 +186,7 @@ const App = (props) => {
             }
 
             isRecreatingBasket.current = true
-            await processFailedPayment(sessionStorage.getItem('order_no') )
+            await processFailedPayment(sessionStorage.getItem('order_no'))
             isRecreatingBasket.current = false
 
             toast({

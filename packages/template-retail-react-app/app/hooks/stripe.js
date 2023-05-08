@@ -21,7 +21,7 @@ import {
     useShopperBasketsMutation,
     useShopperOrdersMutation
 } from 'commerce-sdk-react-preview'
-import { useFailOrder } from '../pages/checkout/util/checkout-request-helper'
+import {useFailOrder} from '../pages/checkout/util/checkout-request-helper'
 
 export const useCreateStripeOrder = () => {
     const {formatMessage} = useIntl()
@@ -41,7 +41,7 @@ export const useCreateStripeOrder = () => {
             const basketId = basket.basketId
             const clientSecret = basket.c_stripeClientSecret
             setIsCreatingOrder(true)
-            
+
             const response = await createOrder({
                 headers: {_sfdc_customer_id: usid},
                 body: {basketId: basket.basketId}
@@ -146,7 +146,7 @@ export const useFailedPayment = () => {
             sessionStorage.removeItem('order_no')
         } catch {
             toast({
-                title: "Something went wrong. Please try again.",
+                title: 'Something went wrong. Please try again.',
                 status: 'error'
             })
 
@@ -159,11 +159,11 @@ export const useFailedPayment = () => {
     return {
         async processFailedPayment(orderNo, orderData = null, clientSecret = null) {
             try {
-                if(!orderNo) {
+                if (!orderNo) {
                     orderNo = sessionStorage.getItem('order_no')
 
-                    if(!orderNo) {
-                        throw new Error("Order number is missing")
+                    if (!orderNo) {
+                        throw new Error('Order number is missing')
                     }
                 }
 

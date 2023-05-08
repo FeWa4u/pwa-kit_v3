@@ -28,7 +28,7 @@ import {loadStripe} from '@stripe/stripe-js'
 import {Elements} from '@stripe/react-stripe-js'
 import {getConfig} from 'pwa-kit-runtime/utils/ssr-config'
 
-const {app, stripePublicKey} = getConfig()
+const {stripePublicKey} = getConfig()
 const stripePromise = loadStripe(stripePublicKey)
 
 const Checkout = () => {
@@ -118,23 +118,26 @@ const CheckoutContainer = () => {
     }
 
     const handleCreatePIResponse = async (data) => {
-        const response = data?.ok && await data.json()
-    
+        const response = data?.ok && (await data.json())
+
         if (response.error || response?.metadata?.basket_id !== basket.basketId) {
             handleError()
         } else {
-            updateBasket.mutate({
-                parameters: {basketId: basket.basketId},
-                body: {
-                    c_stripeClientSecret: response.client_secret,
-                    c_stripePaymentIntentAmount: response.amount,
-                    c_stripePaymentIntentID: response.id,
+            updateBasket.mutate(
+                {
+                    parameters: {basketId: basket.basketId},
+                    body: {
+                        c_stripeClientSecret: response.client_secret,
+                        c_stripePaymentIntentAmount: response.amount,
+                        c_stripePaymentIntentID: response.id
+                    }
+                },
+                {
+                    onError: () => {
+                        handleError()
+                    }
                 }
-            }, {
-                onError: () => {
-                    handleError()
-                }
-            })
+            )
         }
     }
 
@@ -146,8 +149,10 @@ const CheckoutContainer = () => {
                 onSuccess: (data) => {
                     handleCreatePIResponse(data)
                 },
-                onError: () => handleError()
-            })  
+                onError: () => {
+                    handleError()
+                }
+            })
         }
     }, [basket])
 

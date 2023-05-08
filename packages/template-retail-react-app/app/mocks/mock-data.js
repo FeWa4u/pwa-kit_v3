@@ -25,7 +25,7 @@ export const scapiBasketWithItem = {
     basketId: 'e4547d1b21d01bf5ad92d30c9d',
     channelType: 'storefront',
     creationDate: '2023-03-28T17:29:43.704Z',
-    currency: 'GBP',
+    currency: 'eur',
     customerInfo: {
         customerId: 'ablXcZlbAXmewRledJmqYYlKk0'
     },
@@ -91,6 +91,20 @@ export const scapiBasketWithItem = {
     shippingTotalTax: 0.29,
     taxation: 'gross',
     taxTotal: 1.2
+}
+
+export const mockStripePaymentIntent = {
+    id: 'pi_3JeZVzDkv9ywW0vO2K4bxl7X',
+    object: 'payment_intent',
+    amount: 2517,
+    capture_method: 'automatic',
+    client_secret: 'pi_3JeZVzDkv9ywW0vO2K4bxl7X_secret_uKF6OVGuvFlQtcyKjj74QX21U',
+    confirmation_method: 'automatic',
+    created: 1632809407,
+    currency: 'eur',
+    metadata: {
+        basket_id: 'e4547d1b21d01bf5ad92d30c9d'
+    }
 }
 
 export const mockShippingMethods = {
