@@ -9,6 +9,7 @@ import PropTypes from 'prop-types'
 import useEinstein from '../../../hooks/use-einstein'
 import {useCurrentCustomer} from '../../../hooks/use-current-customer'
 import {useCurrentBasket} from '../../../hooks/use-current-basket'
+import {useShopperBasketsMutation} from 'commerce-sdk-react-preview'
 
 const CheckoutContext = React.createContext()
 
@@ -18,42 +19,48 @@ export const CheckoutProvider = ({children}) => {
     const einstein = useEinstein()
     const [step, setStep] = useState()
 
-    const CHECKOUT_STEPS_LIST = [
-        'CONTACT_INFO',
-        'SHIPPING_ADDRESS',
-        'SHIPPING_OPTIONS',
-        'PAYMENT',
-        'REVIEW_ORDER'
-    ]
+    const {mutateAsync: removePaymentInstrumentFromBasket} = useShopperBasketsMutation(
+        'removePaymentInstrumentFromBasket'
+    )
+
+    const CHECKOUT_STEPS_LIST = ['CONTACT_INFO', 'SHIPPING_ADDRESS', 'SHIPPING_OPTIONS', 'PAYMENT']
     const STEPS = CHECKOUT_STEPS_LIST.reduce((acc, step, idx) => ({...acc, [step]: idx}), {})
 
     const getCheckoutStepName = (step) => CHECKOUT_STEPS_LIST[step]
 
-    useEffect(() => {
-        if (!customer || !basket) {
+    useEffect(async () => {
+        if (!customer || !basket || step) {
             return
         }
 
-        let step = STEPS.REVIEW_ORDER
+        let newStep = STEPS.PAYMENT
 
         if (customer.isGuest && !basket.customerInfo?.email) {
-            step = STEPS.CONTACT_INFO
+            newStep = STEPS.CONTACT_INFO
         } else if (!basket.shipments[0]?.shippingAddress) {
-            step = STEPS.SHIPPING_ADDRESS
+            newStep = STEPS.SHIPPING_ADDRESS
         } else if (!basket.shipments[0]?.shippingMethod) {
-            step = STEPS.SHIPPING_OPTIONS
-        } else if (!basket.paymentInstruments || !basket.billingAddress) {
-            step = STEPS.PAYMENT
+            newStep = STEPS.SHIPPING_OPTIONS
         }
 
-        setStep(step)
+        let paymentInstrumentId =
+            basket.paymentInstruments && basket.paymentInstruments[0]?.paymentInstrumentId
+
+        if (paymentInstrumentId) {
+            await removePaymentInstrumentFromBasket({
+                parameters: {
+                    basketId: basket.basketId,
+                    paymentInstrumentId
+                }
+            })
+        }
+
+        setStep(newStep)
     }, [
         customer?.isGuest,
         basket?.customerInfo?.email,
         basket?.shipments[0]?.shippingAddress,
-        basket?.shipments[0]?.shippingMethod,
-        basket?.paymentInstruments,
-        basket?.billingAddress
+        basket?.shipments[0]?.shippingMethod
     ])
 
     /**************** Einstein ****************/

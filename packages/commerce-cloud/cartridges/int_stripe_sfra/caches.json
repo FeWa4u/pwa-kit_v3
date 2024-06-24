@@ -1,0 +1,8 @@
+{
+    "caches": [
+        {
+            "id": "BearerToSession",
+            "expireAfterSeconds": 900
+        }
+    ]
+}

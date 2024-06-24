@@ -39,6 +39,8 @@
     "@lhci/cli": "^0.11.0",
     "@loadable/component": "^5.15.3",
     "@peculiar/webcrypto": "^1.4.2",
+    "@stripe/react-stripe-js": "^2.1.0",
+    "@stripe/stripe-js": "^1.52.1",
     "@tanstack/react-query": "^4.0.10",
     "@tanstack/react-query-devtools": "^4.29.1",
     "@testing-library/dom": "^9.0.1",
@@ -76,7 +78,8 @@
     "react-helmet": "^6.1.0",
     "react-hook-form": "^6.15.8",
     "react-intl": "^5.25.1",
-    "react-router-dom": "^5.3.4"
+    "react-router-dom": "^5.3.4",
+    "zustand": "^4.3.7"
   },
   "peerDependencies": {
     "@chakra-ui/system": "^1.12.1"

@@ -4,10 +4,8 @@
  * SPDX-License-Identifier: BSD-3-Clause
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
  */
-import React, {useEffect, useState} from 'react'
-import {FormattedMessage, useIntl} from 'react-intl'
-import {Alert, AlertIcon, Box, Button, Container, Grid, GridItem, Stack} from '@chakra-ui/react'
-import useNavigation from '../../hooks/use-navigation'
+import React, {useEffect, useRef, useState} from 'react'
+import {Alert, AlertIcon, Box, Container, Grid, GridItem, Stack} from '@chakra-ui/react'
 import {CheckoutProvider, useCheckout} from './util/checkout-context'
 import ContactInfo from './partials/contact-info'
 import ShippingAddress from './partials/shipping-address'
@@ -17,46 +15,32 @@ import OrderSummary from '../../components/order-summary'
 import {useCurrentCustomer} from '../../hooks/use-current-customer'
 import {useCurrentBasket} from '../../hooks/use-current-basket'
 import CheckoutSkeleton from './partials/checkout-skeleton'
-import {useUsid, useShopperOrdersMutation} from 'commerce-sdk-react-preview'
+import {useCreateOrderStore} from '../../stores/isCreatingOrder'
+import LoadingSpinner from '../../components/loading-spinner'
+import {useIntl} from 'react-intl'
+import {useToast} from '../../hooks/use-toast'
+import useNavigation from '../../hooks/use-navigation'
+import {useCreatePaymentIntent} from './util/checkout-request-helper'
+
+import {useShopperBasketsMutation} from 'commerce-sdk-react-preview'
+
+import {loadStripe} from '@stripe/stripe-js'
+import {Elements} from '@stripe/react-stripe-js'
+import {getConfig} from 'pwa-kit-runtime/utils/ssr-config'
+
+const {stripePublicKey} = getConfig()
+const stripePromise = loadStripe(stripePublicKey)
 
 const Checkout = () => {
-    const {formatMessage} = useIntl()
-    const navigate = useNavigation()
-    const usid = useUsid()
     const {step} = useCheckout()
     const [error, setError] = useState()
     const {data: basket} = useCurrentBasket()
-    const [isLoading, setIsLoading] = useState(false)
-    const {mutateAsync: createOrder} = useShopperOrdersMutation('createOrder')
 
     useEffect(() => {
         if (error || step === 4) {
             window.scrollTo({top: 0})
         }
     }, [error, step])
-
-    const submitOrder = async () => {
-        setIsLoading(true)
-        try {
-            const order = await createOrder({
-                // We send the SLAS usid via this header. This is required by ECOM to map
-                // Einstein events sent via the API with the finishOrder event fired by ECOM
-                // when an Order transitions from Created to New status.
-                // Without this, various order conversion metrics will not appear on reports and dashboards
-                headers: {_sfdc_customer_id: usid},
-                body: {basketId: basket.basketId}
-            })
-            navigate(`/checkout/confirmation/${order.orderNo}`)
-        } catch (error) {
-            const message = formatMessage({
-                id: 'checkout.message.generic_error',
-                defaultMessage: 'An unexpected error occurred during checkout.'
-            })
-            setError(message)
-        } finally {
-            setIsLoading(false)
-        }
-    }
 
     return (
         <Box background="gray.50" flex="1">
@@ -79,24 +63,20 @@ const Checkout = () => {
                             <ContactInfo />
                             <ShippingAddress />
                             <ShippingOptions />
-                            <Payment />
-
-                            {step === 4 && (
-                                <Box pt={3} display={{base: 'none', lg: 'block'}}>
-                                    <Container variant="form">
-                                        <Button
-                                            w="full"
-                                            onClick={submitOrder}
-                                            isLoading={isLoading}
-                                            data-testid="sf-checkout-place-order-btn"
-                                        >
-                                            <FormattedMessage
-                                                defaultMessage="Place Order"
-                                                id="checkout.button.place_order"
-                                            />
-                                        </Button>
-                                    </Container>
-                                </Box>
+                            {stripePromise && basket?.c_stripeClientSecret ? (
+                                <Elements
+                                    stripe={stripePromise}
+                                    options={{
+                                        clientSecret: basket.c_stripeClientSecret
+                                    }}
+                                    // This key is needed to force a re-render of the Elements component
+                                    // when the c_stripeClientSecret changes. DO NOT REMOVE THIS KEY!
+                                    key={basket.c_stripeClientSecret}
+                                >
+                                    <Payment />
+                                </Elements>
+                            ) : (
+                                'Something went wrong'
                             )}
                         </Stack>
                     </GridItem>
@@ -107,52 +87,85 @@ const Checkout = () => {
                             showTaxEstimationForm={false}
                             showCartItems={true}
                         />
-
-                        {step === 4 && (
-                            <Box display={{base: 'none', lg: 'block'}} pt={2}>
-                                <Button w="full" onClick={submitOrder} isLoading={isLoading}>
-                                    <FormattedMessage
-                                        defaultMessage="Place Order"
-                                        id="checkout.button.place_order"
-                                    />
-                                </Button>
-                            </Box>
-                        )}
                     </GridItem>
                 </Grid>
             </Container>
-
-            {step === 4 && (
-                <Box
-                    display={{lg: 'none'}}
-                    position="sticky"
-                    bottom="0"
-                    px={4}
-                    pt={6}
-                    pb={11}
-                    background="white"
-                    borderTop="1px solid"
-                    borderColor="gray.100"
-                >
-                    <Container variant="form">
-                        <Button w="full" onClick={submitOrder} isLoading={isLoading}>
-                            <FormattedMessage
-                                defaultMessage="Place Order"
-                                id="checkout.button.place_order"
-                            />
-                        </Button>
-                    </Container>
-                </Box>
-            )}
         </Box>
     )
 }
 
 const CheckoutContainer = () => {
+    const {formatMessage} = useIntl()
+    const toast = useToast()
+    const navigate = useNavigation()
     const {data: customer} = useCurrentCustomer()
     const {data: basket} = useCurrentBasket()
+    const isCreatingPI = useRef(false)
+    const createPaymentIntent = useCreatePaymentIntent()
+
+    const updateBasket = useShopperBasketsMutation('updateBasket')
+    const isCreatingOrder = useCreateOrderStore((state) => state.isCreatingOrder)
+
+    const handleError = () => {
+        toast({
+            title: formatMessage({
+                id: 'checkout.message.generic_error',
+                defaultMessage: 'An unexpected error occurred during checkout.'
+            }),
+            status: 'error'
+        })
+        navigate('/cart')
+    }
+
+    const handleCreatePIResponse = async (data) => {
+        const response = data?.ok && (await data.json())
+
+        if (response.error || response?.metadata?.basket_id !== basket.basketId) {
+            handleError()
+        } else {
+            updateBasket.mutate(
+                {
+                    parameters: {basketId: basket.basketId},
+                    body: {
+                        c_stripeClientSecret: response.client_secret,
+                        c_stripePaymentIntentAmount: response.amount,
+                        c_stripePaymentIntentID: response.id
+                    }
+                },
+                {
+                    onError: () => {
+                        handleError()
+                    }
+                }
+            )
+        }
+    }
+
+    useEffect(() => {
+        if (basket && basket.basketId && !isCreatingPI.current && !basket.c_stripeClientSecret) {
+            isCreatingPI.current = true
+
+            createPaymentIntent.mutate(basket, {
+                onSuccess: (data) => {
+                    handleCreatePIResponse(data)
+                },
+                onError: () => {
+                    handleError()
+                }
+            })
+        }
+    }, [basket])
 
     if (!customer || !customer.customerId || !basket || !basket.basketId) {
+        return (
+            <Box>
+                <CheckoutSkeleton />
+                {isCreatingOrder && <LoadingSpinner />}
+            </Box>
+        )
+    }
+
+    if (!basket.c_stripeClientSecret) {
         return <CheckoutSkeleton />
     }
 

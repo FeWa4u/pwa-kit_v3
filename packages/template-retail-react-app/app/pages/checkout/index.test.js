@@ -17,11 +17,13 @@ import {
 } from '../../utils/test-utils'
 import {
     scapiBasketWithItem,
+    mockStripePaymentIntent,
     mockShippingMethods,
     mockedRegisteredCustomer,
     mockedCustomerProductLists
 } from '../../mocks/mock-data'
 import mockConfig from '../../../config/mocks/default'
+import {useStripe} from '@stripe/react-stripe-js'
 
 jest.setTimeout(30000)
 
@@ -34,6 +36,76 @@ const scapiOrderResponse = {
         email: 'jeff@lebowski.com'
     }
 }
+
+const mockElement = () => ({
+    mount: jest.fn(),
+    destroy: jest.fn(),
+    on: jest.fn(),
+    update: jest.fn()
+})
+
+const mockElements = () => {
+    const elements = {}
+    return {
+        create: jest.fn((type) => {
+            elements[type] = mockElement()
+            return elements[type]
+        }),
+        getElement: jest.fn((type) => {
+            return elements[type] || null
+        })
+    }
+}
+
+const mockStripe = () => ({
+    elements: jest.fn(() => mockElements()),
+    confirmPayment: jest.fn(() => {
+        window.history.pushState({}, 'ProductList', '/uk/en-GB/checkout/confirmation/00000101')
+        return {}
+    })
+})
+
+const mockStripeFailedPayment = () => ({
+    elements: jest.fn(() => mockElements()),
+    confirmPayment: jest.fn(() => ({
+        error: {
+            message: 'Payment failed'
+        }
+    }))
+})
+
+/* eslint-disable react/prop-types*/
+const PaymentElementMock = ({onChange}) => {
+    React.useEffect(() => {
+        onChange({complete: true})
+    }, [onChange])
+    return <div />
+}
+
+jest.mock('@stripe/react-stripe-js', () => {
+    const stripe = jest.requireActual('@stripe/react-stripe-js')
+
+    return {
+        ...stripe,
+        Element: () => {
+            return mockElement()
+        },
+        useStripe: jest.fn(),
+        useElements: () => {
+            return mockElements()
+        },
+        PaymentElement: PaymentElementMock
+    }
+})
+
+jest.mock('@stripe/stripe-js', () => {
+    const stripe = jest.requireActual('@stripe/stripe-js')
+
+    return {
+        ...stripe,
+        loadStripe: () => Promise.resolve(null)
+    }
+})
 
 const defaultShippingMethod = mockShippingMethods.applicableShippingMethods.find(
     (method) => method.id === mockShippingMethods.defaultShippingMethodId
@@ -76,6 +148,7 @@ beforeEach(() => {
 afterEach(() => {
     jest.resetModules()
     localStorage.clear()
+    sessionStorage.clear()
 })
 
 test('Renders skeleton until customer and basket are loaded', () => {
@@ -89,6 +162,10 @@ test('Can proceed through checkout steps as guest', async () => {
     // Keep a *deep* copy of the initial mocked basket. Our mocked fetch responses will continuously
     // update this object, which essentially mimics a saved basket on the backend.
     let currentBasket = JSON.parse(JSON.stringify(scapiBasketWithItem))
+
+    useStripe.mockImplementation(() => {
+        return mockStripe()
+    })
 
     // Set up additional requests for intercepting/mocking for just this test.
     global.server.use(
@@ -180,6 +257,19 @@ test('Can proceed through checkout steps as guest', async () => {
                 total: 1
             }
             return res(ctx.json(baskets))
+        }),
+
+        rest.post('*Stripe-CreatePI', (req, res, ctx) => {
+            return res(ctx.json(mockStripePaymentIntent))
+        }),
+
+        rest.patch('*/*/baskets/:basketId', (req, res, ctx) => {
+            currentBasket.c_stripeClientSecret =
+                'pi_3JeZVzDkv9ywW0vO2K4bxl7X_secret_uKF6OVGuvFlQtcyKjj74QX21U'
+            currentBasket.c_stripePaymentIntentAmount = 2517
+            currentBasket.c_stripePaymentIntentID = 'pi_3JeZVzDkv9ywW0vO2K4bxl7X'
+
+            return res(ctx.json(currentBasket))
         })
     )
 
@@ -244,17 +334,12 @@ test('Can proceed through checkout steps as guest', async () => {
 
     // Wait for next step to render
     await waitFor(() => {
-        expect(screen.getByTestId('sf-toggle-card-step-3-content')).not.toBeEmptyDOMElement()
+        expect(screen.getByText(/place order/i)).toBeInTheDocument()
     })
 
     // Applied shipping method should be displayed in previous step summary
     expect(screen.getByText(defaultShippingMethod.name)).toBeInTheDocument()
-
-    // Fill out credit card payment form
-    user.type(screen.getByLabelText(/card number/i), '4111111111111111')
-    user.type(screen.getByLabelText(/name on card/i), 'Testy McTester')
-    user.type(screen.getByLabelText(/expiration date/i), '1224')
-    user.type(screen.getByLabelText(/security code/i), '123')
+    expect(screen.getByTestId('payment-element-wrapper')).toBeInTheDocument()
 
     // Same as shipping checkbox selected by default
     expect(screen.getByLabelText(/same as shipping address/i)).toBeChecked()
@@ -267,29 +352,19 @@ test('Can proceed through checkout steps as guest', async () => {
     expect(step3Content.getByText('US')).toBeInTheDocument()
 
     // Move to final review step
-    user.click(screen.getByText(/review order/i))
-
-    const placeOrderBtn = await screen.findByTestId('sf-checkout-place-order-btn', undefined, {
-        timeout: 5000
-    })
-
-    // Verify applied payment and billing address
-    expect(step3Content.getByText('Visa')).toBeInTheDocument()
-    expect(step3Content.getByText('•••• 1111')).toBeInTheDocument()
-    expect(step3Content.getByText('12/2024')).toBeInTheDocument()
-
-    expect(step3Content.getByText('Tester McTesting')).toBeInTheDocument()
-    expect(step3Content.getByText('123 Main St')).toBeInTheDocument()
-    expect(step3Content.getByText('Tampa, FL 33610')).toBeInTheDocument()
-    expect(step3Content.getByText('US')).toBeInTheDocument()
-    // Place the order
-    user.click(placeOrderBtn)
+    user.click(screen.getByText(/place order/i))
 
     // Should now be on our mocked confirmation route/page
-    expect(await screen.findByText(/success/i)).toBeInTheDocument()
+    await waitFor(() => {
+        expect(window.location.pathname).toBe('/uk/en-GB/checkout/confirmation/00000101')
+    })
 })
 
 test('Can proceed through checkout as registered customer', async () => {
+    useStripe.mockImplementation(() => {
+        return mockStripe()
+    })
+
     await logInDuringCheckout()
 
     // Email should be displayed in previous step summary
@@ -321,18 +396,12 @@ test('Can proceed through checkout as registered customer', async () => {
 
     // Wait for next step to render
     await waitFor(() => {
-        expect(screen.getByTestId('sf-toggle-card-step-3-content')).not.toBeEmptyDOMElement()
+        expect(screen.getByText(/place order/i)).toBeInTheDocument()
     })
 
     // Applied shipping method should be displayed in previous step summary
     expect(screen.getByText(defaultShippingMethod.name)).toBeInTheDocument()
-
-    // Fill out credit card payment form
-    // (we no longer have saved payment methods)
-    user.type(screen.getByLabelText(/card number/i), '4111111111111111')
-    user.type(screen.getByLabelText(/name on card/i), 'Testy McTester')
-    user.type(screen.getByLabelText(/expiration date/i), '1224')
-    user.type(screen.getByLabelText(/security code/i), '123')
+    expect(screen.getByTestId('payment-element-wrapper')).toBeInTheDocument()
 
     // Same as shipping checkbox selected by default
     expect(screen.getByLabelText(/same as shipping address/i)).toBeChecked()
@@ -342,24 +411,12 @@ test('Can proceed through checkout as registered customer', async () => {
     expect(step3Content.getByText('123 Main St')).toBeInTheDocument()
 
     // Move to final review step
-    user.click(screen.getByText(/review order/i))
-
-    const placeOrderBtn = await screen.findByTestId('sf-checkout-place-order-btn', undefined, {
-        timeout: 5000
-    })
-
-    // Verify applied payment and billing address
-    expect(step3Content.getByText('Master Card')).toBeInTheDocument()
-    expect(step3Content.getByText('•••• 5454')).toBeInTheDocument()
-    expect(step3Content.getByText('1/2030')).toBeInTheDocument()
-
-    expect(step3Content.getByText('123 Main St')).toBeInTheDocument()
-
-    // Place the order
-    user.click(placeOrderBtn)
+    user.click(screen.getByText(/place order/i))
 
     // Should now be on our mocked confirmation route/page
-    expect(await screen.findByText(/success/i)).toBeInTheDocument()
+    await waitFor(() => {
+        expect(window.location.pathname).toBe('/uk/en-GB/checkout/confirmation/00000101')
+    })
 })
 
 test('Can edit address during checkout as a registered customer', async () => {
@@ -428,6 +485,7 @@ const logInDuringCheckout = async () => {
         // mock adding guest email to basket
         rest.put('*/baskets/:basketId/customer', (req, res, ctx) => {
             currentBasket.customerInfo.email = 'customer@test.com'
+
             return res(ctx.json(currentBasket))
         }),
 
@@ -452,6 +510,7 @@ const logInDuringCheckout = async () => {
             }
             currentBasket.shipments[0].shippingAddress = shippingBillingAddress
             currentBasket.billingAddress = shippingBillingAddress
+
             return res(ctx.json(currentBasket))
         }),
 
@@ -524,6 +583,19 @@ const logInDuringCheckout = async () => {
                 total: 1
             }
             return res(ctx.json(baskets))
+        }),
+
+        rest.post('*Stripe-CreatePI', (req, res, ctx) => {
+            return res(ctx.json(mockStripePaymentIntent))
+        }),
+
+        rest.patch('*/*/baskets/:basketId', (req, res, ctx) => {
+            currentBasket.c_stripeClientSecret =
+                'pi_3JeZVzDkv9ywW0vO2K4bxl7X_secret_uKF6OVGuvFlQtcyKjj74QX21U'
+            currentBasket.c_stripePaymentIntentAmount = 2517
+            currentBasket.c_stripePaymentIntentID = 'pi_3JeZVzDkv9ywW0vO2K4bxl7X'
+
+            return res(ctx.json(currentBasket))
         })
     )
 
@@ -575,3 +647,64 @@ const logInDuringCheckout = async () => {
         expect(screen.getByTestId('sf-toggle-card-step-1-content')).not.toBeEmptyDOMElement()
     )
 }
+
+test.skip('Failed Card Payment returns to Payment step', async () => {
+    useStripe.mockImplementation(() => {
+        return mockStripeFailedPayment()
+    })
+
+    await logInDuringCheckout()
+
+    // Email should be displayed in previous step summary
+    expect(screen.getByText('customer@test.com')).toBeInTheDocument()
+
+    // Select a saved address and continue
+    user.click(screen.getByDisplayValue('savedaddress1'))
+    user.click(screen.getByText(/continue to shipping method/i))
+
+    // Wait for next step to render
+    await waitFor(() => {
+        expect(screen.getByTestId('sf-toggle-card-step-2-content')).not.toBeEmptyDOMElement()
+    })
+
+    // Shipping address displayed in previous step summary
+    expect(screen.getByText('Test McTester')).toBeInTheDocument()
+    expect(screen.getByText('123 Main St')).toBeInTheDocument()
+
+    // Default shipping option should be selected
+    const shippingOptionsForm = screen.getByTestId('sf-checkout-shipping-options-form')
+    await waitFor(() =>
+        expect(shippingOptionsForm).toHaveFormValues({
+            'shipping-options-radiogroup': mockShippingMethods.defaultShippingMethodId
+        })
+    )
+
+    // Submit selected shipping method
+    user.click(screen.getByText(/continue to payment/i))
+
+    // Wait for next step to render
+    await waitFor(() => {
+        expect(screen.getByText(/place order/i)).toBeInTheDocument()
+    })
+
+    // Applied shipping method should be displayed in previous step summary
+    expect(screen.getByText(defaultShippingMethod.name)).toBeInTheDocument()
+    expect(screen.getByTestId('payment-element-wrapper')).toBeInTheDocument()
+
+    // Same as shipping checkbox selected by default
+    expect(screen.getByLabelText(/same as shipping address/i)).toBeChecked()
+
+    // Should display billing address that matches shipping address
+    const step3Content = within(screen.getByTestId('sf-toggle-card-step-3-content'))
+    expect(step3Content.getByText('123 Main St')).toBeInTheDocument()
+
+    // // Move to final review step
+    user.click(screen.getByText(/place order/i))
+
+    expect(await screen.findByText(/Payment failed/i)).toBeInTheDocument()
+
+    // // we should be at the payment step again
+    // await waitFor(() => {
+    //     expect(screen.getByText(/review order/i)).toBeInTheDocument()
+    // })
+})
